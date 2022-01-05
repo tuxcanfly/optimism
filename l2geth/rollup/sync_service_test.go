@@ -25,71 +25,81 @@ import (
 	"github.com/ethereum-optimism/optimism/l2geth/rollup/rcfg"
 )
 
-func setupLatestEthContextTest() (*SyncService, *EthContext) {
-	service, _, _, _ := newTestSyncService(false, nil)
-	resp := &EthContext{
-		BlockNumber: uint64(10),
-		BlockHash:   common.Hash{},
-		Timestamp:   uint64(service.timestampRefreshThreshold.Seconds()) + 1,
-	}
-	setupMockClient(service, map[string]interface{}{
-		"GetLatestEthContext": resp,
-	})
-
-	return service, resp
-}
-
-// Test that if applying a transaction fails
-func TestSyncServiceContextUpdated(t *testing.T) {
-	service, resp := setupLatestEthContextTest()
-
-	// should get the expected context
-	expectedCtx := &OVMContext{
-		blockNumber: 0,
-		timestamp:   0,
-	}
-
-	if service.OVMContext != *expectedCtx {
-		t.Fatal("context was not instantiated to the expected value")
-	}
-
-	// run the update context call once
-	err := service.updateContext()
+func TestSyncServiceTimestampUpdate(t *testing.T) {
+	service, txCh, _, err := newTestSyncService(false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// should get the expected context
-	expectedCtx = &OVMContext{
-		blockNumber: resp.BlockNumber,
-		timestamp:   resp.Timestamp,
+	// Get the timestamp from the sync service
+	// It should be initialized to 0
+	ts := service.GetLatestL1Timestamp()
+	if ts != 0 {
+		t.Fatalf("Unexpected timestamp: %d", ts)
 	}
 
-	if service.OVMContext != *expectedCtx {
-		t.Fatal("context was not updated to the expected response even though enough time passed")
+	// Create a mock transaction and assert that its timestamp
+	// a value. This tests the case that the timestamp does
+	// not get malleated when it is set to a non zero value
+	timestamp := uint64(1)
+	tx1 := setMockTxL1Timestamp(mockTx(), timestamp)
+	if tx1.GetMeta().L1Timestamp != timestamp {
+		t.Fatalf("Expecting mock timestamp to be %d", timestamp)
+	}
+	if tx1.GetMeta().QueueOrigin != types.QueueOriginSequencer {
+		t.Fatalf("Expecting mock queue origin to be queue origin sequencer")
 	}
 
-	// updating the context should be a no-op if time advanced by less than
-	// the refresh period
-	resp.BlockNumber += 1
-	resp.Timestamp += uint64(service.timestampRefreshThreshold.Seconds())
-	setupMockClient(service, map[string]interface{}{
-		"GetLatestEthContext": resp,
-	})
+	go func() {
+		err = service.applyTransactionToTip(tx1)
+	}()
+	event1 := <-txCh
 
-	// call it again
-	err = service.updateContext()
-	if err != nil {
-		t.Fatal(err)
+	// Ensure that the timestamp isn't malleated
+	if event1.Txs[0].GetMeta().L1Timestamp != timestamp {
+		t.Fatalf("Timestamp was malleated: %d", event1.Txs[0].GetMeta().L1Timestamp)
 	}
 
-	// should not get the context from the response because it was too soon
-	unexpectedCtx := &OVMContext{
-		blockNumber: resp.BlockNumber,
-		timestamp:   resp.Timestamp,
+	// Ensure that the timestamp in the sync service was not updated
+	// TODO: verify that this is the desired behavior
+	if service.GetLatestL1Timestamp() != ts {
+		t.Fatal("timestamp updated in sync service")
 	}
-	if service.OVMContext == *unexpectedCtx {
-		t.Fatal("context should not be updated because not enough time passed")
+
+	// Now test the case for when a transaction is malleated.
+	// If the timestamp is 0, then it should be malleated and set
+	// equal to whatever the latestL1Timestamp is
+	tx2 := mockTx()
+	if tx2.GetMeta().L1Timestamp != 0 {
+		t.Fatal("Expecting mock timestamp to be 0")
+	}
+	go func() {
+		err = service.applyTransactionToTip(tx2)
+	}()
+	event2 := <-txCh
+
+	// Ensure that the sync service timestamp is updated
+	if service.GetLatestL1Timestamp() == 0 {
+		t.Fatal("timestamp not updated")
+	}
+
+	// Ensure that the timestamp is malleated to be equal to what the sync
+	// service has as the latest timestamp
+	if event2.Txs[0].GetMeta().L1Timestamp != service.GetLatestL1Timestamp() {
+		t.Fatal("unexpected timestamp update")
+	}
+
+	// L1ToL2 transactions should have their timestamp malleated
+	tx3 := setMockQueueOrigin(setMockTxL1Timestamp(mockTx(), 100), types.QueueOriginL1ToL2)
+	ts3 := service.GetLatestL1Timestamp()
+
+	go func() {
+		err = service.applyTransactionToTip(tx3)
+	}()
+	event3 := <-txCh
+
+	if event3.Txs[0].GetMeta().L1Timestamp != ts3 {
+		t.Fatal("bad malleation")
 	}
 }
 
@@ -1046,6 +1056,13 @@ func setMockTxIndex(tx *types.Transaction, index uint64) *types.Transaction {
 func setMockQueueIndex(tx *types.Transaction, index uint64) *types.Transaction {
 	meta := tx.GetMeta()
 	meta.QueueIndex = &index
+	tx.SetTransactionMeta(meta)
+	return tx
+}
+
+func setMockQueueOrigin(tx *types.Transaction, qo types.QueueOrigin) *types.Transaction {
+	meta := tx.GetMeta()
+	meta.QueueOrigin = qo
 	tx.SetTransactionMeta(meta)
 	return tx
 }
