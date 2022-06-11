@@ -95,6 +95,7 @@ L2_CROSS_DOMAIN_MESSENGER_BYTECODE=$(get_deployed_bytecode L2/L2CrossDomainMesse
 OPTIMISM_MINTABLE_TOKEN_FACTORY_BYTECODE=$(get_deployed_bytecode universal/OptimismMintableTokenFactory.sol/OptimismMintableTokenFactory.json)
 L2_STANDARD_BRIDGE_BYTECODE=$(get_deployed_bytecode L2/L2StandardBridge.sol/L2StandardBridge.json)
 L1_BLOCK_INFO_BYTECODE=$(get_deployed_bytecode L2/L1Block.sol/L1Block.json)
+GAS_PRICE_ORACLE_BYTECODE=$(get_deployed_bytecode L2/GasPriceOracle.sol/GasPriceOracle.json)
 
 DEPOSIT_CONTRACT_ADDRESS=$(jq -r .address < $CONTRACTS_BEDROCK/deployments/devnetL1/OptimismPortal.json)
 L2OO_ADDRESS=$(jq -r .address < $CONTRACTS_BEDROCK/deployments/devnetL1/L2OutputOracle.json)
@@ -111,6 +112,8 @@ jq ". | .alloc.\"4200000000000000000000000000000000000015\".code = \"$L1_BLOCK_I
   jq ". | .alloc.\"4200000000000000000000000000000000000012\".balance = \"0x0\"" | \
   jq ". | .alloc.\"4200000000000000000000000000000000000010\".code = \"$L2_STANDARD_BRIDGE_BYTECODE\"" | \
   jq ". | .alloc.\"4200000000000000000000000000000000000010\".balance = \"0x0\"" | \
+  jq ". | .alloc.\"420000000000000000000000000000000000000F\".code = \"$GAS_PRICE_ORACLE_BYTECODE\"" | \
+  jq ". | .alloc.\"420000000000000000000000000000000000000F\".balance = \"0x0\"" | \
   jq ". | .timestamp = \"$GENESIS_TIMESTAMP\" " > ./.devnet/genesis-l2.json
 
 # Bring up L2.
