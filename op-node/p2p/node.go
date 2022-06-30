@@ -49,7 +49,7 @@ func NewNodeP2P(resourcesCtx context.Context, rollupCfg *rollup.Config, log log.
 }
 
 func (n *NodeP2P) init(resourcesCtx context.Context, rollupCfg *rollup.Config, log log.Logger, setup SetupP2P, gossipIn GossipIn) error {
-	log.Info("started host", "peer_id", n.host.ID())
+	log.Info("started host", "peer_id", n.dv5Local.ID())
 	var err error
 	// nil if disabled.
 	n.host, err = setup.Host(log)
