@@ -144,7 +144,9 @@ func (conf *Config) Host(log log.Logger) (host.Host, error) {
 		return nil, err
 	}
 	for _, peerAddr := range conf.StaticPeers {
+		fmt.Printf("peerAddr: %v\n", peerAddr)
 		addr, err := peer.AddrInfoFromP2pAddr(peerAddr)
+		fmt.Printf("addr: %v; err: %v\n", addr, err)
 		if err != nil {
 			return nil, fmt.Errorf("bad peer address: %v", err)
 		}
