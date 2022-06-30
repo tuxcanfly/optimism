@@ -93,7 +93,11 @@ func (conf *Config) Discovery(log log.Logger, rollupCfg *rollup.Config, tcpPort 
 		return nil, nil, err
 	}
 
-	log.Info("started discovery service", "enr", localNode.Node(), "id", localNode.ID())
+	info, err := enrToAddrInfo(localNode.Node())
+	if err != nil {
+		return nil, nil, err
+	}
+	log.Info("started discovery service", "enr", localNode.Node(), "multiaddr", info.Addrs, "id", localNode.ID())
 
 	// TODO: periodically we can pull the external IP and TCP port from libp2p NAT service,
 	// and add it as a statement to keep the localNode accurate (if we trust the NAT device more than the discv5 statements)
