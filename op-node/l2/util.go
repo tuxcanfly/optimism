@@ -50,16 +50,19 @@ func (res *AccountResult) Verify(stateRoot common.Hash) error {
 	if err != nil {
 		return fmt.Errorf("failed to encode account from retrieved values: %v", err)
 	}
+	fmt.Printf("accountClaimedValue: %x\n", accountClaimedValue)
 
 	// create a db with all trie nodes
 	db := memorydb.New()
 	for i, encodedNode := range res.AccountProof {
 		nodeKey := crypto.Keccak256(encodedNode)
+		fmt.Printf("i = %d; nodeKey: %x; encodedNode: %x\n", i, nodeKey, encodedNode)
 		if err := db.Put(nodeKey, encodedNode); err != nil {
 			return fmt.Errorf("failed to load proof value %d into mem db: %v", i, err)
 		}
 	}
 
+	fmt.Printf("res.Address: %x\n", res.Address)
 	key := crypto.Keccak256Hash(res.Address[:])
 	trieDB := trie.NewDatabase(db)
 
@@ -69,11 +72,13 @@ func (res *AccountResult) Verify(stateRoot common.Hash) error {
 		return fmt.Errorf("failed to load db wrapper around kv store")
 	}
 
+	fmt.Printf("key: %x\n", key)
 	// now get the full value from the account proof, and check that it matches the JSON contents
 	accountProofValue, err := proofTrie.TryGet(key[:])
 	if err != nil {
 		return fmt.Errorf("failed to retrieve account value: %v", err)
 	}
+	fmt.Printf("accountProofValue: %x\n", accountProofValue)
 
 	if !bytes.Equal(accountClaimedValue, accountProofValue) {
 		return fmt.Errorf("L1 RPC is tricking us, account proof does not match provided deserialized values:\n"+
