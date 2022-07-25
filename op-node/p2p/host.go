@@ -158,7 +158,7 @@ func (conf *Config) Host(log log.Logger) (host.Host, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 			defer cancel()
 			if _, err := h.Network().DialPeer(ctx, addr.ID); err != nil {
-				log.Warn("Failed to dial static peer", "peer", addr.ID, "addrs", addr.Addrs)
+				log.Warn("Failed to dial static peer", "peer", addr.ID, "addrs", addr.Addrs, "err", err)
 			}
 		}()
 	}
