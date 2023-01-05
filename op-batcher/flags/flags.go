@@ -33,6 +33,18 @@ var (
 		Required: true,
 		EnvVar:   opservice.PrefixEnvVar(envVarPrefix, "ROLLUP_RPC"),
 	}
+	DaRpcFlag = cli.StringFlag{
+		Name:     "da-rpc",
+		Usage:    "HTTP provider URL for DA node",
+		Required: true,
+		EnvVar:   opservice.PrefixEnvVar(envVarPrefix, "DA_RPC"),
+	}
+	NamespaceId = cli.StringFlag{
+		Name:     "namespace-id",
+		Usage:    "Namespace ID for DA node",
+		Required: true,
+		EnvVar:   opservice.PrefixEnvVar(envVarPrefix, "NAMESPACE_ID"),
+	}
 	MinL1TxSizeBytesFlag = cli.Uint64Flag{
 		Name:     "min-l1-tx-size-bytes",
 		Usage:    "The minimum size of a batch tx submitted to L1.",

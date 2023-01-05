@@ -112,11 +112,40 @@ def main():
     wait_up(9545)
 
     log.info('Bringing up everything else.')
+    run_command(["chmod", "777", "celestia-node/bridge/"], cwd=ops_bedrock_dir, env={
+      'PWD': ops_bedrock_dir,
+    })
+    run_command(["chmod", "777", "celestia-node/light/"], cwd=ops_bedrock_dir, env={
+      'PWD': ops_bedrock_dir,
+    })
+    log.info('Bringing up Celestia')
+    run_command(['docker-compose', 'up', '-d', 'core0'], cwd=ops_bedrock_dir, env={
+      'PWD': ops_bedrock_dir,
+    })
+    log.info("Waiting 5s for core nodes to produce a block")
+    run_command(['sleep', '5'], cwd=ops_bedrock_dir, env={
+      'PWD': ops_bedrock_dir,
+    })
+    run_command(['docker-compose', 'up', '-d', 'dalc0'], cwd=ops_bedrock_dir, env={
+      'PWD': ops_bedrock_dir,
+    })
+    log.info("Waiting 10s for bridge nodes to sync a block")
+    run_command(['sleep', '10'], cwd=ops_bedrock_dir, env={
+      'PWD': ops_bedrock_dir,
+    })
+    run_command(['docker-compose', 'up', '-d', 'light0'], cwd=ops_bedrock_dir, env={
+      'PWD': ops_bedrock_dir,
+    })
+    run_command(['sleep', '10'], cwd=ops_bedrock_dir, env={
+      'PWD': ops_bedrock_dir,
+    })
     run_command(['docker-compose', 'up', '-d', 'op-node', 'op-proposer', 'op-batcher'], cwd=ops_bedrock_dir, env={
         'PWD': ops_bedrock_dir,
         'L2OO_ADDRESS': addresses['L2OutputOracleProxy'],
         'SEQUENCER_BATCH_INBOX_ADDRESS': rollup_config['batch_inbox_address']
     })
+
+
 
     log.info('Devnet ready.')
 

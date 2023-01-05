@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/go-cnc"
 	hdwallet "github.com/ethereum-optimism/go-ethereum-hdwallet"
 	"github.com/ethereum-optimism/optimism/op-batcher/sequencer"
 	"github.com/ethereum-optimism/optimism/op-node/eth"
@@ -23,7 +24,7 @@ import (
 )
 
 // BatchSubmitter encapsulates a service responsible for submitting L2 tx
-// batches to L1 for availability.
+// batches to Celestia for availability.
 type BatchSubmitter struct {
 	txMgr *TransactionManager
 	addr  common.Address
@@ -119,6 +120,10 @@ func NewBatchSubmitterWithSigner(cfg Config, addr common.Address, signer SignerF
 	if err != nil {
 		return nil, err
 	}
+	daClient, err := cnc.NewClient("http://host.docker.internal:26658", cnc.WithTimeout(90*time.Second))
+	if err != nil {
+		return nil, err
+	}
 
 	chainID, err := l1Client.ChainID(ctx)
 	if err != nil {
@@ -160,7 +165,7 @@ func NewBatchSubmitterWithSigner(cfg Config, addr common.Address, signer SignerF
 	return &BatchSubmitter{
 		cfg:   batcherCfg,
 		addr:  addr,
-		txMgr: NewTransactionManager(l, txManagerConfig, batchInboxAddress, chainID, addr, l1Client, signer(chainID)),
+		txMgr: NewTransactionManager(l, txManagerConfig, batchInboxAddress, chainID, addr, l1Client, daClient, cfg.NamespaceId, signer(chainID)),
 		done:  make(chan struct{}),
 		log:   l,
 		state: NewChannelManager(l, cfg.ChannelTimeout),

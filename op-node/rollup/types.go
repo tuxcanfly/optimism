@@ -44,6 +44,8 @@ type Config struct {
 	// Required to identify the L2 network and create p2p signatures unique for this chain.
 	L2ChainID *big.Int `json:"l2_chain_id"`
 
+	NamespaceId string `json:"namespace_id"`
+
 	// Address of the key the sequencer uses to sign blocks on the P2P layer
 	P2PSequencerAddress common.Address `json:"p2p_sequencer_address"`
 
@@ -110,6 +112,10 @@ func (cfg *Config) Check() error {
 	}
 	if cfg.L1ChainID.Cmp(cfg.L2ChainID) == 0 {
 		return errors.New("l1 and l2 chain IDs must be different")
+	}
+	if cfg.NamespaceId == "" {
+		// FIXME: params
+		cfg.NamespaceId = "e8e5f679bf7116cb"
 	}
 	return nil
 }

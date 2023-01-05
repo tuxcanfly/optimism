@@ -1,10 +1,15 @@
 package derive
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"time"
+
+	"github.com/celestiaorg/go-cnc"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -54,6 +59,7 @@ type DataSource struct {
 	fetcher L1TransactionFetcher
 	log     log.Logger
 
+	daClient    *cnc.Client
 	batcherAddr common.Address
 }
 
@@ -61,6 +67,11 @@ type DataSource struct {
 // If there is an error, it will attempt to fetch the result on the next call to `Next`.
 func NewDataSource(ctx context.Context, log log.Logger, cfg *rollup.Config, fetcher L1TransactionFetcher, block eth.BlockID, batcherAddr common.Address) DataIter {
 	_, txs, err := fetcher.InfoAndTxsByHash(ctx, block.Hash)
+	// FIXME: use config
+	daClient, err := cnc.NewClient("http://host.docker.internal:26658", cnc.WithTimeout(30*time.Second))
+	if err != nil {
+		log.Error("", err)
+	}
 	if err != nil {
 		return &DataSource{
 			open:        false,
@@ -68,6 +79,7 @@ func NewDataSource(ctx context.Context, log log.Logger, cfg *rollup.Config, fetc
 			cfg:         cfg,
 			fetcher:     fetcher,
 			log:         log,
+			daClient:    daClient,
 			batcherAddr: batcherAddr,
 		}
 	} else {
@@ -106,8 +118,19 @@ func (ds *DataSource) Next(ctx context.Context) (eth.Data, error) {
 // This will return an empty array if no valid transactions are found.
 func DataFromEVMTransactions(config *rollup.Config, batcherAddr common.Address, txs types.Transactions, log log.Logger) []eth.Data {
 	var out []eth.Data
+	var nid [8]byte
+	var ctx context.Context
+	// FIXME: params
+	copy(nid[:], "e8e5f679bf7116cb")
+
 	l1Signer := config.L1Signer()
+	// FIXME: use config
+	daClient, err := cnc.NewClient("http://host.docker.internal:26658", cnc.WithTimeout(30*time.Second))
+	if err != nil {
+		log.Error("", err)
+	}
 	for j, tx := range txs {
+
 		if to := tx.To(); to != nil && *to == config.BatchInboxAddress {
 			seqDataSubmitter, err := l1Signer.Sender(tx) // optimization: only derive sender if To is correct
 			if err != nil {
@@ -119,8 +142,36 @@ func DataFromEVMTransactions(config *rollup.Config, batcherAddr common.Address, 
 				log.Warn("tx in inbox with unauthorized submitter", "index", j, "err", err)
 				continue // not an authorized batch submitter, ignore
 			}
-			out = append(out, tx.Data())
+
+			height, index, err := decodeETHData(tx.Data())
+			if err != nil {
+				log.Warn("unable to decode data pointer", "index", j, "err", err)
+				continue
+			}
+			data, err := daClient.NamespacedData(ctx, nid, uint64(height))
+			if err != nil {
+				log.Warn("unable to retrieve data from da", "err", err)
+			}
+			out = append(out, data[index])
 		}
 	}
 	return out
+}
+
+// decodeETHData will decode the data retrieved from the EVM, this data
+// was previously posted from op-batcher and contains the block height
+// with transaction index of the SubmitPFD transaction to the DA.
+func decodeETHData(celestiaData []byte) (int64, int64, error) {
+	buf := bytes.NewBuffer(celestiaData)
+	var height int64
+	err := binary.Read(buf, binary.BigEndian, &height)
+	if err != nil {
+		return 0, 0, fmt.Errorf("error deserializing height: %w", err)
+	}
+	var index int64
+	err = binary.Read(buf, binary.BigEndian, &index)
+	if err != nil {
+		return 0, 0, fmt.Errorf("error deserializing index: %w", err)
+	}
+	return height, index, nil
 }

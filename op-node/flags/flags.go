@@ -36,6 +36,12 @@ var (
 		Usage:  "Rollup chain parameters",
 		EnvVar: prefixEnvVar("ROLLUP_CONFIG"),
 	}
+	NamespaceId = cli.StringFlag{
+		Name:     "namespace-id",
+		Usage:    "Namespace ID for DA node",
+		Required: true,
+		EnvVar:   prefixEnvVar("NAMESPACE_ID"),
+	}
 	Network = cli.StringFlag{
 		Name:   "network",
 		Usage:  fmt.Sprintf("Predefined network selection. Available networks: %s", strings.Join(chaincfg.AvailableNetworks(), ", ")),

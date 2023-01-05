@@ -103,11 +103,74 @@ services:
       OP_PROPOSER_METRICS_ENABLED: "true"
       OP_PROPOSER_ALLOW_NON_FINALIZED: "true"
 
+  dalc0:
+    container_name: dalc0
+    image: "ghcr.io/celestiaorg/celestia-node:sha-f4e582e"
+    environment:
+      - NODE_TYPE=bridge
+      - "CELESTIA_CUSTOM=private:B37ADC527B29B88D91CC758D1F4190D2C48CEEEB981175AEF1159099B09E1D04"
+    command: [
+      "celestia", "bridge",
+      "start",
+      "--core.ip", "192.167.10.0",
+      "--keyring.accname", "key-1",
+    ]
+    volumes:
+      - ${PWD}/celestia-app/private/keyring-test:/root/.celestia-bridge-private/keys/keyring-test:ro
+      - ${PWD}/celestia-node/bridge/config.toml:/root/.celestia-bridge-private/config.toml
+    ports:
+      - "26658:26658"
+    depends_on:
+      - core0
+    networks:
+      localnet:
+        ipv4_address: 192.167.3.0
+  core0:
+    container_name: core0
+    image: "celestia-app:v0.7.0"
+    environment:
+      - CELESTIA_HOME=/root/.celestia-app
+    command: [
+      "start",
+      "--home", "/root/.celestia-app",
+      "--rpc.laddr", "tcp://0.0.0.0:26657"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/private/config/priv_validator_key.json:/root/.celestia-app/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/private/config/node_key.json:/root/.celestia-app/config/node_key.json:ro
+      - ${PWD}/celestia-app/private/config/genesis.json:/root/.celestia-app/config/genesis.json:ro
+      - ${PWD}/celestia-app/private/config/config.toml:/root/.celestia-app/config/config.toml:ro
+      - ${PWD}/celestia-app/private/config/client.toml:/root/.celestia-app/config/client.toml:ro
+      - ${PWD}/celestia-app/private/keyring-test:/root/.celestia-app/keyring-test:ro
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.0
+  light0:
+    container_name: light0
+    image: "ghcr.io/celestiaorg/celestia-node:sha-042ebe1"
+    environment:
+      - NODE_TYPE=light
+      - CELESTIA_PRIVATE_GENESIS=02EED4BCFAF0CC8A3D1100D588E571FBF44219488F01AB48870BC9015A9F105A
+    command: [
+      "celestia", "light",
+      "--node.store", "/celestia-light",
+      "start",
+      "--headers.trusted-peers",
+      "/ip4/192.167.1.0/tcp/2121/p2p/12D3KooWL8z3KARAYJcmExhDsGwKbjChKeGaJpFPENyADdxmEHzw"
+    ]
+    volumes:
+      - ${PWD}/celestia-node/light/light0/nodekey0:/celestia-light/keys/OAZHALLLMV4Q:ro
+    networks:
+      localnet:
+        ipv4_address: 192.167.2.0
+    depends_on:
+      - dalc0
   op-batcher:
     depends_on:
       - l1
       - l2
       - op-node
+      - core0
     build:
       context: ../
       dockerfile: ./op-batcher/Dockerfile
@@ -118,6 +181,8 @@ services:
       OP_BATCHER_L1_ETH_RPC: http://l1:8545
       OP_BATCHER_L2_ETH_RPC: http://l2:8545
       OP_BATCHER_ROLLUP_RPC: http://op-node:8545
+      OP_BATCHER_DA_RPC: http://host.docker.internal:26658
+      OP_BATCHER_NAMESPACE_ID: "e8e5f679bf7116cb"
       OP_BATCHER_MIN_L1_TX_SIZE_BYTES: 1
       OP_BATCHER_MAX_L1_TX_SIZE_BYTES: 120000
       OP_BATCHER_CHANNEL_TIMEOUT: 40
@@ -145,3 +210,13 @@ services:
       - "9090:8080"
     volumes:
       - op_log:/op_log:ro
+
+
+networks:
+  localnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        -
+          subnet: 192.167.0.0/16

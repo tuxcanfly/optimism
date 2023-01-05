@@ -24,6 +24,12 @@ type Config struct {
 	// RollupRpc is the HTTP provider URL for the L2 rollup node.
 	RollupRpc string
 
+	// DaRpc is the HTTP provider URL for the Data Availability node.
+	DaRpc string
+
+	// NamespaceId is the id of the namespace of the Data Availability node.
+	NamespaceId string
+
 	// MinL1TxSize is the minimum size of a batch tx submitted to L1.
 	MinL1TxSize uint64
 
@@ -101,6 +107,8 @@ func NewConfig(ctx *cli.Context) Config {
 		L1EthRpc:                   ctx.GlobalString(flags.L1EthRpcFlag.Name),
 		L2EthRpc:                   ctx.GlobalString(flags.L2EthRpcFlag.Name),
 		RollupRpc:                  ctx.GlobalString(flags.RollupRpcFlag.Name),
+		DaRpc:                      ctx.GlobalString(flags.DaRpcFlag.Name),
+		NamespaceId:                ctx.GlobalString(flags.NamespaceId.Name),
 		MinL1TxSize:                ctx.GlobalUint64(flags.MinL1TxSizeBytesFlag.Name),
 		MaxL1TxSize:                ctx.GlobalUint64(flags.MaxL1TxSizeBytesFlag.Name),
 		ChannelTimeout:             ctx.GlobalUint64(flags.ChannelTimeoutFlag.Name),

@@ -94,6 +94,13 @@ fi
   docker-compose up -d l2
   wait_up $L2_URL
 )
+# Bring up DA.
+(
+  cd ops-bedrock
+  echo "Bringing up L2..."
+  docker-compose up -d da
+  wait_up $L2_URL
+)
 
 L2OO_ADDRESS="0x6900000000000000000000000000000000000000"
 SEQUENCER_BATCH_INBOX_ADDRESS="$(cat $DEVNET/rollup.json | jq -r '.batch_inbox_address')"
