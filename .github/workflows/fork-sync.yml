@@ -18,7 +18,7 @@ jobs:
       with:
         # optional: set the branch to checkout,
         # sync action checks out your 'target_sync_branch' anyway
-        ref:  celestia-develop
+        ref:  tuxcanfly-develop
         # REQUIRED if your upstream repo is private (see wiki)
         persist-credentials: false
 
@@ -28,7 +28,7 @@ jobs:
       id: sync
       uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
       with:
-        target_sync_branch: celestia-develop
+        target_sync_branch: tuxcanfly-develop
         # REQUIRED 'target_repo_token' exactly like this!
         target_repo_token: ${{ secrets.GITHUB_TOKEN }}
         upstream_sync_branch: develop
